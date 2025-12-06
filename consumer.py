@@ -4,6 +4,10 @@ from config.config import Config
 from services.place_extractor import extract_place_info, generate_embedding
 from services.pinecone_service import store_place, query_places
 from services.series_api import send_message, format_recommendations
+from services.gemini_service import search_places_web, get_place_details
+
+MIN_SCORE_THRESHOLD = 0.4
+MIN_RESULTS = 2
 
 def create_consumer():
     return KafkaConsumer(
@@ -32,30 +36,46 @@ def handle_message(chat_id: str, phone: str, user_id: str, text: str):
         place = extracted["place"]
         print(f"   📦 Extracted: {place}")
         embed_text = f"{place['name']} {place.get('description', '')} {place.get('type', '')} {place.get('vibe', '')}"
-        print(f"   🧮 Embedding text: {embed_text}")
         embedding = generate_embedding(embed_text)
-        print(f"   ✅ Embedding generated (dim: {len(embedding)})")
+        print(f"   ✅ Embedding generated")
         store_place(user_id, place, embedding)
         print(f"   📍 Stored in Pinecone: {place['name']}")
-        print(f"   💬 [WOULD SEND]: ✅ Added {place['name']} to your spots!")
+        response = f"✅ Added {place['name']} to your spots! Your friends will see this when searching."
+        print(f"   💬 Sending reply: {response}")
+        send_message(chat_id, response)
         
     elif intent == "query":
         query = extracted["query"]
         print(f"   📦 Extracted query: {query}")
         embedding = generate_embedding(query["text"])
-        print(f"   ✅ Query embedding generated")
         filters = {"type": query["type"]} if query.get("type") and query["type"] != "any" else {}
         print(f"   🔎 Searching with filters: {filters}")
         places = query_places(user_id, embedding, filters)
-        print(f"   🔍 Found {len(places)} results:")
-        for p in places[:3]:
-            print(f"      - {p['name']} ({p['degree']} degree, score: {p['score']:.2f})")
-        print(f"   💬 [WOULD SEND]:")
-        print(format_recommendations(places))
+        
+        # Check if results are good enough
+        good_results = [p for p in places if p['score'] >= MIN_SCORE_THRESHOLD]
+        
+        if len(good_results) >= MIN_RESULTS:
+            print(f"   🔍 Found {len(good_results)} good results from network")
+            response = format_recommendations(good_results)
+        else:
+            print(f"   ⚠️ Only {len(good_results)} good results, falling back to web search...")
+            web_results = search_places_web(query["text"])
+            print(f"   🌐 Web results: {web_results[:100]}...")
+            
+            if good_results:
+                response = f"From your network:\n{format_recommendations(good_results)}\n\nAlso found online:\n{web_results}"
+            else:
+                response = f"No one in your network has shared spots for this yet!\n\nHere's what I found online:\n{web_results}"
+        
+        print(f"   💬 Sending reply:\n{response}")
+        send_message(chat_id, response)
         
     else:
         print(f"   ❓ No action taken")
-        print(f"   💬 [WOULD SEND]: Hey! Share a spot or ask for recs.")
+        response = "Hey! You can:\n• Share a spot: \"Tatte is a great quiet cafe\"\n• Find spots: \"where's good for a date?\""
+        print(f"   💬 Sending reply: {response}")
+        send_message(chat_id, response)
 
 def run():
     print("🚀 Starting Places Consumer...")

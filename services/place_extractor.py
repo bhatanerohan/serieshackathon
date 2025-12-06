@@ -29,7 +29,7 @@ Only include "place" for add_place, only "query" for query intent."""
 
 def extract_place_info(message: str) -> dict:
     response = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You extract structured place data from casual messages. Be flexible with informal language."},
             {"role": "user", "content": EXTRACTION_PROMPT.format(message=message)}

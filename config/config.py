@@ -13,11 +13,13 @@ class Config:
     
     # Series API
     SERIES_API_KEY = os.getenv('SERIES_API_KEY')
-    SERIES_API_BASE_URL = os.getenv('SERIES_BASE_URL', 'https://api.series.com')
-    SERIES_SENDER_NUMBER = os.getenv('SERIES_SENDER_NUMBER')
+    SERIES_API_BASE_URL = os.getenv('SERIES_API_BASE_URL')
     
     # OpenAI
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    
+    # Gemini
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     
     # Pinecone
     PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
