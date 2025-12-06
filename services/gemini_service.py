@@ -1,12 +1,11 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from config.config import Config
 
-genai.configure(api_key=Config.GEMINI_API_KEY)
-
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=Config.GEMINI_API_KEY)
 
 def search_places_web(query: str, location: str = "Boston") -> str:
-    """Fallback search using Gemini with grounding"""
+    """Fallback search using Gemini with Google Search grounding"""
     
     prompt = f"""Find real places for this request: "{query}" in {location}.
 
@@ -18,9 +17,12 @@ Return 3-5 specific places with:
 
 Be specific with real place names, not generic suggestions."""
 
-    response = model.generate_content(
-        prompt,
-        tools='google_search_retrieval'
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())]
+        )
     )
     
     return response.text
@@ -37,9 +39,12 @@ def get_place_details(place_name: str, location: str = "Boston") -> str:
 
 Be factual and specific."""
 
-    response = model.generate_content(
-        prompt,
-        tools='google_search_retrieval'
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())]
+        )
     )
     
     return response.text
